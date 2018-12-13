@@ -928,6 +928,12 @@ func GLGetAttribute(attr GLattr) (int, error) {
 	return int(_value), nil
 }
 
+// Use this function to reset all previously set OpenGL context attributes to their default values.
+// (https://wiki.libsdl.org/SDL_GL_ResetAttributes)
+func GLResetAttributes() {
+	C.SDL_GL_ResetAttributes()
+}
+
 // GLCreateContext creates an OpenGL context for use with an OpenGL window, and make it current.
 // (https://wiki.libsdl.org/SDL_GL_CreateContext)
 func (window *Window) GLCreateContext() (GLContext, error) {
