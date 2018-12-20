@@ -41,7 +41,9 @@ static void * SDL_LoadFile_RW(SDL_RWops * src, size_t *datasize, int freesrc)
 */
 import "C"
 import (
+	"io"
 	"reflect"
+	"strings"
 	"unsafe"
 )
 
@@ -157,6 +159,9 @@ func (rwops *RWops) Read2(buf []byte, size, maxnum uint) (n int, err error) {
 	n = int(C.RWread(rwops.cptr(), _data, C.size_t(size), C.size_t(maxnum)))
 	if n == 0 {
 		err = GetError()
+		if strings.Contains(err.Error(), "java.io.FileNotFoundException") {
+			err = io.EOF
+		}
 	}
 	return
 }
