@@ -299,6 +299,22 @@ func (e *TextEditingEvent) GetType() uint32 {
 	return e.Type
 }
 
+// GetText returns the text as string
+func (e *TextEditingEvent) GetText() string {
+	length := func(buf []byte) int {
+		for i := range buf {
+			if buf[i] == 0 {
+				return i
+			}
+		}
+
+		return 0
+	}(e.Text[:])
+
+	text := e.Text[:length]
+	return string(text)
+}
+
 // GetTimestamp returns the timestamp of the event.
 func (e *TextEditingEvent) GetTimestamp() uint32 {
 	return e.Timestamp
@@ -322,6 +338,22 @@ func (e *TextInputEvent) GetType() uint32 {
 // GetTimestamp returns the timestamp of the event.
 func (e *TextInputEvent) GetTimestamp() uint32 {
 	return e.Timestamp
+}
+
+// GetText returns the text as string
+func (e *TextInputEvent) GetText() string {
+	length := func(buf []byte) int {
+		for i := range buf {
+			if buf[i] == 0 {
+				return i
+			}
+		}
+
+		return 0
+	}(e.Text[:])
+
+	text := e.Text[:length]
+	return string(text)
 }
 
 // MouseMotionEvent contains mouse motion event information.
@@ -358,7 +390,7 @@ type MouseButtonEvent struct {
 	Which     uint32 // the mouse instance id, or TOUCH_MOUSEID
 	Button    uint8  // BUTTON_LEFT, BUTTON_MIDDLE, BUTTON_RIGHT, BUTTON_X1, BUTTON_X2
 	State     uint8  // PRESSED, RELEASED
-	_         uint8  // padding
+	Clicks    uint8  // 1 for single-click, 2 for double-click, etc. (>= SDL 2.0.2)
 	_         uint8  // padding
 	X         int32  // X coordinate, relative to window
 	Y         int32  // Y coordinate, relative to window
@@ -833,9 +865,9 @@ func (e *UserEvent) GetTimestamp() uint32 {
 // SysWMEvent contains a video driver dependent system event.
 // (https://wiki.libsdl.org/SDL_SysWMEvent)
 type SysWMEvent struct {
-	Type      uint32         // SYSWMEVENT
-	Timestamp uint32         // timestamp of the event
-	msg       unsafe.Pointer // driver dependent data, defined in SDL_syswm.h
+	Type      uint32    // SYSWMEVENT
+	Timestamp uint32    // timestamp of the event
+	Msg       *SysWMmsg // driver dependent data, defined in SDL_syswm.h
 }
 type cSysWMEvent C.SDL_SysWMEvent
 
@@ -883,6 +915,10 @@ func PumpEvents() {
 // PeepEvents checks the event queue for messages and optionally return them.
 // (https://wiki.libsdl.org/SDL_PeepEvents)
 func PeepEvents(events []Event, action EventAction, minType, maxType uint32) (storedEvents int, err error) {
+	if events == nil {
+		return 0, nil
+	}
+
 	var _events []CEvent = make([]CEvent, len(events))
 
 	if action == ADDEVENT { // the contents of _events matter if they are to be added
@@ -934,11 +970,11 @@ func FlushEvents(minType, maxType uint32) {
 // PollEvent polls for currently pending events.
 // (https://wiki.libsdl.org/SDL_PollEvent)
 func PollEvent() Event {
-	ret := C.SDL_PollEvent(&cevent)
+	ret := C.PollEvent()
 	if ret == 0 {
 		return nil
 	}
-	return goEvent((*CEvent)(unsafe.Pointer(&cevent)))
+	return goEvent((*CEvent)(unsafe.Pointer(&C.event)))
 }
 
 func goEvent(cevent *CEvent) Event {
@@ -996,11 +1032,13 @@ func goEvent(cevent *CEvent) Event {
 		return (*RenderEvent)(unsafe.Pointer(cevent))
 	case QUIT:
 		return (*QuitEvent)(unsafe.Pointer(cevent))
-	case USEREVENT:
-		return (*UserEvent)(unsafe.Pointer(cevent))
 	case CLIPBOARDUPDATE:
 		return (*ClipboardEvent)(unsafe.Pointer(cevent))
 	default:
+		if cevent.Type >= USEREVENT {
+			// all events beyond USEREVENT are UserEvents to be registered with RegisterEvents
+			return (*UserEvent)(unsafe.Pointer(cevent))
+		}
 		return (*CommonEvent)(unsafe.Pointer(cevent))
 	}
 }

@@ -342,13 +342,12 @@ type MessageBoxButtonData struct {
 // MessageBoxData contains title, text, window and other data for a message box.
 // (https://wiki.libsdl.org/SDL_MessageBoxData)
 type MessageBoxData struct {
-	Flags       uint32                 // MESSAGEBOX_ERROR, MESSAGEBOX_WARNING, MESSAGEBOX_INFORMATION
-	Window      *Window                // an parent window, can be nil
-	Title       string                 // an UTF-8 title
-	Message     string                 // an UTF-8 message text
-	NumButtons  int32                  // the number of buttons
-	Buttons     []MessageBoxButtonData // an array of MessageBoxButtonData with size of numbuttons
-	ColorScheme *MessageBoxColorScheme // a MessageBoxColorScheme, can be nil to use system settings
+	Flags       uint32  // MESSAGEBOX_ERROR, MESSAGEBOX_WARNING, MESSAGEBOX_INFORMATION
+	Window      *Window // parent window or nil
+	Title       string
+	Message     string
+	Buttons     []MessageBoxButtonData
+	ColorScheme *MessageBoxColorScheme // nil to use system settings
 }
 
 func (window *Window) cptr() *C.SDL_Window {
@@ -854,13 +853,17 @@ func ShowMessageBox(data *MessageBoxData) (buttonid int32, err error) {
 		cbtntexts = append(cbtntexts, ctext)
 	}
 
+	var buttonPtr *C.SDL_MessageBoxButtonData
+	if len(cbuttons) > 0 {
+		buttonPtr = &cbuttons[0]
+	}
 	cdata := C.SDL_MessageBoxData{
 		flags:       C.Uint32(data.Flags),
 		window:      data.Window.cptr(),
 		title:       _title,
 		message:     _message,
-		numbuttons:  C.int(data.NumButtons),
-		buttons:     &cbuttons[0],
+		numbuttons:  C.int(len(data.Buttons)),
+		buttons:     buttonPtr,
 		colorScheme: data.ColorScheme.cptr(),
 	}
 

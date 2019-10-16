@@ -1,6 +1,33 @@
 package sdl
 
 // #include "sdl_wrapper.h"
+//
+// #if !(SDL_VERSION_ATLEAST(2,0,5))
+//
+// enum
+// {
+// #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+//     SDL_PIXELFORMAT_RGBA32 = SDL_PIXELFORMAT_RGBA8888,
+//     SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_ARGB8888,
+//     SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_BGRA8888,
+//     SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_ABGR8888
+// #else
+//     SDL_PIXELFORMAT_RGBA32 = SDL_PIXELFORMAT_ABGR8888,
+//     SDL_PIXELFORMAT_ARGB32 = SDL_PIXELFORMAT_BGRA8888,
+//     SDL_PIXELFORMAT_BGRA32 = SDL_PIXELFORMAT_ARGB8888,
+//     SDL_PIXELFORMAT_ABGR32 = SDL_PIXELFORMAT_RGBA8888
+// #endif
+// };
+//
+// #endif
+//
+// int bytesPerPixel(Uint32 format) {
+//   return SDL_BYTESPERPIXEL(format);
+// }
+//
+// int bitsPerPixel(Uint32 format) {
+//   return SDL_BITSPERPIXEL(format);
+// }
 import "C"
 import "unsafe"
 import "image/color"
@@ -47,10 +74,10 @@ type Color color.RGBA
 // Uint32 return uint32 representation of RGBA color.
 func (c Color) Uint32() uint32 {
 	var v uint32
-	v |= uint32(c.A) << 24
-	v |= uint32(c.R) << 16
-	v |= uint32(c.G) << 8
-	v |= uint32(c.B)
+	v |= uint32(c.R) << 24
+	v |= uint32(c.G) << 16
+	v |= uint32(c.B) << 8
+	v |= uint32(c.A)
 	return v
 }
 
@@ -156,10 +183,10 @@ const (
 
 // Pixel format variables.
 var (
-	PIXELFORMAT_RGBA32 int
-	PIXELFORMAT_ARGB32 int
-	PIXELFORMAT_BGRA32 int
-	PIXELFORMAT_ABGR32 int
+	PIXELFORMAT_RGBA32 = C.SDL_PIXELFORMAT_RGBA32
+	PIXELFORMAT_ARGB32 = C.SDL_PIXELFORMAT_ARGB32
+	PIXELFORMAT_BGRA32 = C.SDL_PIXELFORMAT_BGRA32
+	PIXELFORMAT_ABGR32 = C.SDL_PIXELFORMAT_ABGR32
 )
 
 // These define alpha as the opacity of a surface.
@@ -167,20 +194,6 @@ const (
 	ALPHA_OPAQUE      = C.SDL_ALPHA_OPAQUE
 	ALPHA_TRANSPARENT = C.SDL_ALPHA_TRANSPARENT
 )
-
-func init() {
-	if BYTEORDER == BIG_ENDIAN {
-		PIXELFORMAT_RGBA32 = PIXELFORMAT_RGBA8888
-		PIXELFORMAT_ARGB32 = PIXELFORMAT_ARGB8888
-		PIXELFORMAT_BGRA32 = PIXELFORMAT_BGRA8888
-		PIXELFORMAT_ABGR32 = PIXELFORMAT_ABGR8888
-	} else {
-		PIXELFORMAT_RGBA32 = PIXELFORMAT_ABGR8888
-		PIXELFORMAT_ARGB32 = PIXELFORMAT_BGRA8888
-		PIXELFORMAT_BGRA32 = PIXELFORMAT_ARGB8888
-		PIXELFORMAT_ABGR32 = PIXELFORMAT_RGBA8888
-	}
-}
 
 func (format *PixelFormat) cptr() *C.SDL_PixelFormat {
 	return (*C.SDL_PixelFormat)(unsafe.Pointer(format))
@@ -259,6 +272,9 @@ func (format *PixelFormat) SetPalette(palette *Palette) error {
 // SetColors sets a range of colors in the palette.
 // (https://wiki.libsdl.org/SDL_SetPaletteColors)
 func (palette *Palette) SetColors(colors []Color) error {
+	if colors == nil {
+		return nil
+	}
 	var ptr *C.SDL_Color
 	if len(colors) > 0 {
 		ptr = (*C.SDL_Color)(unsafe.Pointer(&colors[0]))
@@ -312,4 +328,14 @@ func GetRGBA(pixel uint32, format *PixelFormat) (r, g, b, a uint8) {
 // (https://wiki.libsdl.org/SDL_CalculateGammaRamp)
 func CalculateGammaRamp(gamma float32, ramp *[256]uint16) {
 	C.SDL_CalculateGammaRamp(C.float(gamma), (*C.Uint16)(unsafe.Pointer(&ramp[0])))
+}
+
+// BytesPerPixel returns the number of bytes per pixel for the given format
+func BytesPerPixel(format uint32) int {
+	return int(C.bytesPerPixel(C.Uint32(format)))
+}
+
+// BitsPerPixel returns the number of bits per pixel for the given format
+func BitsPerPixel(format uint32) int {
+	return int(C.bitsPerPixel(C.Uint32(format)))
 }
